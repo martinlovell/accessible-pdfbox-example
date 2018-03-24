@@ -28,13 +28,12 @@ public class AccessiblePdfExample {
 	private PDDocument document;
 	private PDPage currentPage;
 	private PDStructureElement currentPart;
-	private PDStructureElement currentSect;
+	private PDStructureElement currentSection;
 	private PDPageContentStream currentContentStream;
 	private COSDictionary currentMarkedContentDictionary;
 	private int mcid = 1;
 
 	public void generateSamplePdf(String outputPdfFile) throws IOException {
-
 		createDocument();
 		addPart();
 		addSection(currentPart);
@@ -43,16 +42,16 @@ public class AccessiblePdfExample {
 		addImage();
 		addText("This is the Heading", "Here is some standard text in a paragraph.");
 		closeContentStream();
-		createPage();
 		addSection(currentPart);
+		createPage();
 		createContentStream();
 		addText("This is Another Heading", "PDFBox Accessible PDF Example.");
 		closeContentStream();
 		document.save(outputPdfFile);
+		document.close();
 	}
 
 	private void createDocument() {
-
 		this.document = new PDDocument();
 		document.getDocumentInformation().setTitle("Title Necessary");
 		PDDocumentCatalog documentCatalog = this.document.getDocumentCatalog();
@@ -67,7 +66,6 @@ public class AccessiblePdfExample {
 	}
 
 	private PDPage createPage() {
-
 		currentPage = new PDPage(PDRectangle.LETTER);
 		currentPage.getCOSObject().setItem(COSName.getPDFName("Tabs"), COSName.S);
 		document.addPage(currentPage);
@@ -75,7 +73,6 @@ public class AccessiblePdfExample {
 	}
 
 	private PDStructureElement addPart() {
-
 		PDStructureElement part = new PDStructureElement(StandardStructureTypes.PART,
 				document.getDocumentCatalog().getStructureTreeRoot());
 		document.getDocumentCatalog().getStructureTreeRoot().appendKid(part);
@@ -84,15 +81,13 @@ public class AccessiblePdfExample {
 	}
 
 	private PDStructureElement addSection(PDStructureElement parent) {
-
 		PDStructureElement sect = new PDStructureElement(StandardStructureTypes.SECT, parent);
 		parent.appendKid(sect);
-		currentSect = sect;
+		currentSection = sect;
 		return sect;
 	}
 
 	private PDPageContentStream createContentStream() throws IOException {
-
 		currentContentStream = new PDPageContentStream(document, currentPage, AppendMode.OVERWRITE, false);
 		return currentContentStream;
 	}
@@ -110,8 +105,7 @@ public class AccessiblePdfExample {
 	}
 
 	private void addImageToCurrentSection(PDImageXObject pdImageXObject, String altText) {
-
-		PDStructureElement structureElement = new PDStructureElement(StandardStructureTypes.Figure, currentSect);
+		PDStructureElement structureElement = new PDStructureElement(StandardStructureTypes.Figure, currentSection);
 		structureElement.setPage(currentPage);
 		PDMarkedContent markedContent = new PDMarkedContent(COSName.IMAGE, currentMarkedContentDictionary);
 		markedContent.addXObject(pdImageXObject);
@@ -120,20 +114,18 @@ public class AccessiblePdfExample {
 			currentMarkedContentDictionary.setString(COSName.ALT, altText);
 			structureElement.setAlternateDescription(altText);
 		}
-		currentSect.appendKid(structureElement);
+		currentSection.appendKid(structureElement);
 	}
 
-	private void addContentToStructure(COSName name, String type) {
-
-		PDStructureElement structureElement = new PDStructureElement(type, currentSect);
+	private void addContentToCurrentSection(COSName name, String type) {
+		PDStructureElement structureElement = new PDStructureElement(type, currentSection);
 		structureElement.setPage(currentPage);
 		PDMarkedContent markedContent = new PDMarkedContent(name, currentMarkedContentDictionary);
 		structureElement.appendKid(markedContent);
-		currentSect.appendKid(structureElement);
+		currentSection.appendKid(structureElement);
 	}
 
 	private void addText(String header, String text) throws IOException {
-
 		currentContentStream.beginText();
 
 		currentContentStream.setFont(PDType1Font.HELVETICA_BOLD, 14);
@@ -141,14 +133,14 @@ public class AccessiblePdfExample {
 		beginMarkedConent(COSName.P);
 		currentContentStream.showText(header);
 		currentContentStream.endMarkedContent();
-		addContentToStructure(COSName.P, StandardStructureTypes.H1);
+		addContentToCurrentSection(COSName.P, StandardStructureTypes.H1);
 
 		currentContentStream.setFont(PDType1Font.HELVETICA, 12);
 		currentContentStream.newLineAtOffset(0, -100);
 		beginMarkedConent(COSName.P);
 		currentContentStream.showText(text);
 		currentContentStream.endMarkedContent();
-		addContentToStructure(COSName.P, StandardStructureTypes.P);
+		addContentToCurrentSection(COSName.P, StandardStructureTypes.P);
 
 		currentContentStream.endText();
 	}
