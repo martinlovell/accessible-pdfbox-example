@@ -159,7 +159,6 @@ public class AccessiblePdfExample {
 		beginMarkedConent(COSName.P);
 		currentContentStream.showText(header);
 		currentContentStream.endMarkedContent();
-		//Note that using H1 here will cause NVDA to announce "1" after reading the text. This is also true of similarly created files in acrobat.
 		addContentToCurrentSection(COSName.P, StandardStructureTypes.H1);
 
 		currentContentStream.setFont(PDType1Font.HELVETICA, 12);
