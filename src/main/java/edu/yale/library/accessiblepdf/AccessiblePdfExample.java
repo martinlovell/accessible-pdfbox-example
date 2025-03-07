@@ -4,15 +4,19 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import javax.imageio.ImageIO;
+import org.apache.pdfbox.cos.COSArray;
 import org.apache.pdfbox.cos.COSDictionary;
+import org.apache.pdfbox.cos.COSInteger;
 import org.apache.pdfbox.cos.COSName;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDDocumentCatalog;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.PDPageContentStream.AppendMode;
+import org.apache.pdfbox.pdmodel.common.PDNumberTreeNode;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.documentinterchange.logicalstructure.PDMarkInfo;
+import org.apache.pdfbox.pdmodel.documentinterchange.logicalstructure.PDParentTreeValue;
 import org.apache.pdfbox.pdmodel.documentinterchange.logicalstructure.PDStructureElement;
 import org.apache.pdfbox.pdmodel.documentinterchange.logicalstructure.PDStructureTreeRoot;
 import org.apache.pdfbox.pdmodel.documentinterchange.markedcontent.PDMarkedContent;
@@ -31,7 +35,9 @@ public class AccessiblePdfExample {
 	private PDStructureElement currentSection;
 	private PDPageContentStream currentContentStream;
 	private COSDictionary currentMarkedContentDictionary;
-	private int mcid = 1;
+	private int mcid;
+	private COSArray objectsOnPage;
+	int pageNum = 0;
 
 	public void generateSamplePdf(String outputPdfFile) throws IOException {
 		createDocument();
@@ -43,10 +49,12 @@ public class AccessiblePdfExample {
 		addText("This is the Heading", "Here is some standard text in a paragraph.");
 		closeContentStream();
 		addSection(currentPart);
+		finishPage();
 		createPage();
 		createContentStream();
 		addText("This is Another Heading", "PDFBox Accessible PDF Example.");
 		closeContentStream();
+		finishPage();
 		document.save(outputPdfFile);
 		document.close();
 	}
@@ -63,13 +71,29 @@ public class AccessiblePdfExample {
 		PDMarkInfo markInfo = new PDMarkInfo();
 		markInfo.setMarked(true);
 		documentCatalog.setMarkInfo(markInfo);
+		PDNumberTreeNode numberTree = new PDNumberTreeNode(PDParentTreeValue.class);
+		numberTree.getCOSObject().setItem(COSName.NUMS, new COSArray());
+		structureTreeRoot.setParentTree(numberTree);
 	}
 
 	private PDPage createPage() {
+		//mcid should start over on each page, as it is the index into the appropriate page of ParentTree
+		mcid = 0;
+		objectsOnPage = new COSArray();
 		currentPage = new PDPage(PDRectangle.LETTER);
 		currentPage.getCOSObject().setItem(COSName.getPDFName("Tabs"), COSName.S);
+		currentPage.getCOSObject().setItem(COSName.STRUCT_PARENTS, COSInteger.get(pageNum));
 		document.addPage(currentPage);
 		return currentPage;
+	}
+
+	private void finishPage() {
+		PDNumberTreeNode parentTree = document.getDocumentCatalog().getStructureTreeRoot().getParentTree();
+		COSDictionary parentTreeDictionary = parentTree.getCOSObject();
+		COSArray taggedItems = (COSArray) parentTreeDictionary.getItem(COSName.NUMS);
+		taggedItems.add(COSInteger.get(pageNum));
+		taggedItems.add(objectsOnPage);
+		pageNum++;
 	}
 
 	private PDStructureElement addPart() {
@@ -115,6 +139,7 @@ public class AccessiblePdfExample {
 			structureElement.setAlternateDescription(altText);
 		}
 		currentSection.appendKid(structureElement);
+		objectsOnPage.add(structureElement.getCOSObject());
 	}
 
 	private void addContentToCurrentSection(COSName name, String type) {
@@ -123,6 +148,7 @@ public class AccessiblePdfExample {
 		PDMarkedContent markedContent = new PDMarkedContent(name, currentMarkedContentDictionary);
 		structureElement.appendKid(markedContent);
 		currentSection.appendKid(structureElement);
+		objectsOnPage.add(structureElement.getCOSObject());
 	}
 
 	private void addText(String header, String text) throws IOException {
